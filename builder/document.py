@@ -22,6 +22,7 @@ from builder.styles import StyleConfig
 from builder.xml_helpers import (
     ensure_trPr, set_row_cant_split, set_row_table_header, set_spacing_lines,
     make_border, find_drawing_and_inline, build_anchor_from_inline,
+    remove_theme_fonts,
 )
 from builder.numbering import collect_numbering, caption_with_number
 
@@ -288,8 +289,9 @@ class DocumentBuilder:
         para = self.doc.add_paragraph(text, style=style)
         para.alignment = alignment
         self._apply_line_spacing(para)
-        for run in para.runs:
-            self._apply_run_font(run, self.styles.font(font_key))
+        if style not in self._HEADING_STYLES:
+            for run in para.runs:
+                self._apply_run_font(run, self.styles.font(font_key))
         set_spacing_lines(
             para,
             space_before if space_before is not None else self.styles.layout.chapter_before_lines,
@@ -321,14 +323,17 @@ class DocumentBuilder:
         style.font.color.rgb = RGBColor(0, 0, 0)
         rPr = style.element.get_or_add_rPr()
         self._set_rfonts_on_rpr(rPr, fn, "Times New Roman", "Times New Roman")
+        rFonts = rPr.find(qn("w:rFonts"))
+        if rFonts is not None:
+            remove_theme_fonts(rFonts)
         if alignment is not None:
             style.paragraph_format.alignment = alignment
 
     def _define_heading_styles(self):
         configs = [
             ("Heading 1", "chapter_title", WD_PARAGRAPH_ALIGNMENT.CENTER),
-            ("Heading 2", "section_title_1", WD_PARAGRAPH_ALIGNMENT.LEFT),
-            ("Heading 3", "section_title_2", WD_PARAGRAPH_ALIGNMENT.LEFT),
+            ("Heading 2", "section_title_1", WD_PARAGRAPH_ALIGNMENT.JUSTIFY),
+            ("Heading 3", "section_title_2", WD_PARAGRAPH_ALIGNMENT.JUSTIFY),
         ]
         for style_name, font_key, alignment in configs:
             self._apply_style_font(self.doc.styles[style_name], font_key, alignment)
@@ -471,7 +476,7 @@ class DocumentBuilder:
         self._build_abstract_section(
             title=self._T_ABSTRACT_EN, title_font="english_abstract_title",
             lines=self.thesis.english_abstract, body_font="english_abstract_body",
-            justify=True,
+            indent=True, justify=True,
             kw_label="Key words: ", kw_label_font="english_keywords_title",
             keywords=self.thesis.english_keywords, kw_font="english_keywords",
             kw_sep="; ",
@@ -555,8 +560,7 @@ class DocumentBuilder:
         self._add_full_page_image(image_name, behind_doc=True, allow_overlap=True)
 
     def _add_back_cover_page(self, image_name: str):
-        self._add_full_page_image(image_name, behind_doc=False, allow_overlap=False,
-                                   center=False, include_effect_extent=False)
+        self._add_full_page_image(image_name, behind_doc=True, allow_overlap=True)
 
     def _build_cover(self):
         self._add_cover_page("cover_image1.jpeg")
@@ -734,6 +738,7 @@ class DocumentBuilder:
                 para.paragraph_format.first_line_indent = Pt(self.styles.layout.first_line_indent_pt)
             if justify:
                 para.paragraph_format.alignment = WD_PARAGRAPH_ALIGNMENT.JUSTIFY
+            para.paragraph_format.space_after = Pt(self.styles.layout.abstract_body_space_after_pt)
 
         self.doc.add_paragraph()
 
@@ -835,10 +840,12 @@ class DocumentBuilder:
             self._apply_run_font(cap_run, self.styles.font(font_key))
 
 
+    _HEADING_STYLES = frozenset({"Heading 1", "Heading 2", "Heading 3"})
+
     _LEVEL_CONFIG = {
         1: ("Heading 1", "chapter_title", WD_PARAGRAPH_ALIGNMENT.CENTER, "chapter_before_lines", "chapter_after_lines"),
-        2: ("Heading 2", "section_title_1", WD_PARAGRAPH_ALIGNMENT.LEFT, "section_before_lines", "section_after_lines"),
-        3: ("Heading 3", "section_title_2", WD_PARAGRAPH_ALIGNMENT.LEFT, "section_before_lines", "section_after_lines"),
+        2: ("Heading 2", "section_title_1", WD_PARAGRAPH_ALIGNMENT.JUSTIFY, "section_before_lines", "section_after_lines"),
+        3: ("Heading 3", "section_title_2", WD_PARAGRAPH_ALIGNMENT.JUSTIFY, "subsection_before_lines", "subsection_after_lines"),
     }
 
     def _add_heading(self, text: str, level: int, use_auto_number: bool = True):
@@ -847,8 +854,6 @@ class DocumentBuilder:
         para = self.doc.add_paragraph(text, style=style_name)
         para.alignment = alignment
         self._apply_line_spacing(para)
-        for run in para.runs:
-            self._apply_run_font(run, self.styles.font(font_key))
         set_spacing_lines(para, getattr(self.styles.layout, sb_key), getattr(self.styles.layout, sa_key))
         if use_auto_number and level <= 3:
             pPr = para._element.get_or_add_pPr()

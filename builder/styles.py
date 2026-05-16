@@ -19,10 +19,13 @@ class LayoutMetrics:
     chapter_after_lines: int = 50
     section_before_lines: int = 50
     section_after_lines: int = 50
+    subsection_before_lines: int = 0
+    subsection_after_lines: int = 0
     caption_before_lines: int = 50
     caption_after_lines: int = 50
     declaration_title_space_lines: int = 100
     declaration_body_space_after_pt: float = 48.0
+    abstract_body_space_after_pt: float = 0.0
     line_spacing_pt: float = 23.0
 
 

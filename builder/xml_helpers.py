@@ -36,6 +36,18 @@ def set_spacing_lines(para, before_lines: int, after_lines: int):
     spacing.set(qn('w:afterLines'), str(after_lines))
 
 
+_THEME_FONT_ATTRS = (
+    qn('w:asciiTheme'), qn('w:eastAsiaTheme'),
+    qn('w:hAnsiTheme'), qn('w:cstheme'),
+)
+
+
+def remove_theme_fonts(rFonts):
+    for attr in _THEME_FONT_ATTRS:
+        if rFonts.get(attr) is not None:
+            del rFonts.attrib[attr]
+
+
 def make_border(tag, val="single", sz="12"):
     el = OxmlElement(f"w:{tag}")
     el.set(qn("w:val"), val)

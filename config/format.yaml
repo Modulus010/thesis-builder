@@ -25,10 +25,13 @@ layout:
   chapter_after_lines: 50     # 章标题段后0.5行
   section_before_lines: 50    # 节标题段前0.5行
   section_after_lines: 50     # 节标题段后0.5行
+  subsection_before_lines: 0  # 小节标题段前0行
+  subsection_after_lines: 0   # 小节标题段后0行
   caption_before_lines: 50    # 图题/表题段前0.5行
   caption_after_lines: 50     # 图题/表题段后0.5行
   declaration_title_space_lines: 100  # 声明标题段前段后各约1行
   declaration_body_space_after_pt: 48
+  abstract_body_space_after_pt: 0
   line_spacing_pt: 23       # 正文固定行距23磅
 
 # 字体设置
@@ -84,25 +87,25 @@ fonts:
   chapter_title:
     name: 黑体
     size: 18       # 小二号
-    bold: true
+    bold: false
 
   # 节一级标题 (X.1)
   section_title_1:
     name: 黑体
     size: 14       # 四号
-    bold: true
+    bold: false
 
   # 节二级标题 (X.1.1)
   section_title_2:
     name: 黑体
     size: 12       # 小四号
-    bold: true
+    bold: false
 
   # 节三级标题 (X.1.1.1)
   section_title_3:
     name: 黑体
     size: 12       # 小四号
-    bold: true
+    bold: false
 
   # 正文
   body:
@@ -146,7 +149,7 @@ fonts:
   english_keywords_title:
     name: Times New Roman
     size: 12       # 小四号
-    bold: false
+    bold: true
 
   # 英文关键词
   english_keywords:
@@ -161,7 +164,7 @@ fonts:
 
   # 目录章标题
   toc_chapter:
-    name: 黑体
+    name: 宋体
     size: 14       # 四号
 
   # 目录其他内容
@@ -173,7 +176,7 @@ fonts:
   references_title:
     name: 黑体
     size: 18       # 小二号
-    bold: true
+    bold: false
 
   # 致谢标题
   acknowledgments_title:
