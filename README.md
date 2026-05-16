@@ -17,7 +17,7 @@
 
 ![生成效果](examples/output-preview.png)
 
-上面的效果由 `examples/compiler-thesis.md` 编译生成，这个文件本身就是一篇关于 thesis-builder 的完整论文，同时也是 DSL 语法的最佳参考。
+完整的 40 页编译效果见 [examples/thesis.pdf](examples/thesis.pdf)。上面的效果由 `examples/compiler-thesis.md` 编译生成，这个文件本身就是一篇关于 thesis-builder 的完整论文，同时也是 DSL 语法的最佳参考。
 
 ## 快速开始
 
@@ -208,6 +208,7 @@ thesis-builder/
 │   └── migrate_thesis.py  # Word → Markdown 迁移工具
 └── examples/
     ├── compiler-thesis.md   # 完整示例论文
+    ├── thesis.pdf           # 编译效果（40页）
     └── output-preview.png   # 编译效果截图
 ```
 
