@@ -240,6 +240,12 @@ python main.py <input.md> [-o output.docx] [options]
 - **Word 兼容性：** 生成的文档使用 OOXML 域代码实现图表编号和目录，需在 Word 中右键"更新域"刷新目录和编号
 - **格式适配：** 当前配置针对东北大学本科毕业设计规范。其他学校需修改 `config/format.yaml`
 
+## 联系方式
+
+QQ: 3176733724
+
+如果这个项目帮到了你，欢迎请我喝杯咖啡 ☕ 觉得好用的话，给个 star ⭐，让更多需要的人看到！
+
 ## License
 
 MIT
