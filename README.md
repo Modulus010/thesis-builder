@@ -4,6 +4,8 @@
 
 三阶段流水线：**Markdown → AST → .docx**
 
+![生成效果](examples/output-preview.png)
+
 ## 快速开始
 
 ```bash
