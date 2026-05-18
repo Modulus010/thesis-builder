@@ -488,7 +488,8 @@ class DocumentBuilder:
 
         if self.thesis.sections:
             for i, section in enumerate(self.thesis.sections):
-                self._add_document_section(WD_SECTION_START.ODD_PAGE, section.title, "decimal",
+                header_text = f"{section.auto_number} {section.title}" if section.auto_number and section.level == 1 else section.title
+                self._add_document_section(WD_SECTION_START.ODD_PAGE, header_text, "decimal",
                                            page_start=1 if i == 0 else None)
                 self._build_section(section)
 
@@ -502,19 +503,19 @@ class DocumentBuilder:
         self._add_document_section(WD_SECTION_START.NEW_PAGE, self._T_ACKNOWLEDGMENTS)
         self._build_acknowledgments()
 
-        blank_sec = self._add_section(WD_SECTION_START.NEW_PAGE)
-        self._clear_section_headers_footers(blank_sec)
-
-        sec_back = self._add_section(WD_SECTION_START.NEW_PAGE)
-        self._clear_section_headers_footers(sec_back)
-        sec_back.top_margin = Cm(0)
-        sec_back.bottom_margin = Cm(0)
-        sec_back.left_margin = Cm(0)
-        sec_back.right_margin = Cm(0)
-        sec_back.header_distance = Cm(0)
-        sec_back.footer_distance = Cm(0)
-        self._remove_section_headers(sec_back)
-        self._add_back_cover_page("cover_image2.jpeg")
+        # blank_sec = self._add_section(WD_SECTION_START.NEW_PAGE)
+        # self._clear_section_headers_footers(blank_sec)
+        #
+        # sec_back = self._add_section(WD_SECTION_START.NEW_PAGE)
+        # self._clear_section_headers_footers(sec_back)
+        # sec_back.top_margin = Cm(0)
+        # sec_back.bottom_margin = Cm(0)
+        # sec_back.left_margin = Cm(0)
+        # sec_back.right_margin = Cm(0)
+        # sec_back.header_distance = Cm(0)
+        # sec_back.footer_distance = Cm(0)
+        # self._remove_section_headers(sec_back)
+        # self._add_back_cover_page("cover_image2.jpeg")
 
         output_dir = os.path.dirname(output_path)
         if output_dir:
@@ -662,8 +663,9 @@ class DocumentBuilder:
         table.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
         co_name = meta.co_advisor.split()[0] if meta.co_advisor else ""
         co_title = "Engineer" if "工程师" in (meta.co_advisor or "") else "Professor"
+        advisor_title = "Associate Professor" if "副教授" in (meta.advisor or "") else "Professor"
         cells = [
-            ("Supervisor:", "Professor", meta.advisor.split()[0] if meta.advisor else ""),
+            ("Supervisor:", advisor_title, meta.advisor.split()[0] if meta.advisor else ""),
             ("Associate Supervisor:", co_title, co_name),
         ]
         for row_idx, (label, title, name) in enumerate(cells):
@@ -716,7 +718,9 @@ class DocumentBuilder:
         self._set_paragraph_text(decl_para, decl_text, "declaration_body", True)
         decl_para.paragraph_format.alignment = WD_PARAGRAPH_ALIGNMENT.JUSTIFY
         decl_para.paragraph_format.first_line_indent = Pt(self.styles.layout.first_line_indent_pt)
-        decl_para.paragraph_format.space_after = Pt(self.styles.layout.declaration_body_space_after_pt)
+        decl_para.paragraph_format.line_spacing = Pt(self.styles.layout.line_spacing_pt)
+        decl_para.paragraph_format.space_after = Pt(0)
+        decl_para.paragraph_format.space_before = Pt(0)
 
         sign_para = self.doc.add_paragraph()
         sign_para.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
@@ -875,7 +879,11 @@ class DocumentBuilder:
         para.paragraph_format.alignment = WD_PARAGRAPH_ALIGNMENT.JUSTIFY
 
     def _build_section(self, section: Section):
-        self._add_heading(section.title, section.level)
+        if section.auto_number:
+            heading_text = f"{section.auto_number} {section.title}"
+        else:
+            heading_text = section.title
+        self._add_heading(heading_text, section.level, use_auto_number=False)
 
         for item in section.items:
             if isinstance(item, str):
@@ -908,6 +916,14 @@ class DocumentBuilder:
         for ref in self.thesis.references:
             para = self.doc.add_paragraph()
             self._set_paragraph_text(para, ref.content, "references_body", True)
+
+            char_pt = self.styles.font("references_body")["size"]
+            pf = para.paragraph_format
+            pf.left_indent = Pt(char_pt * 2)
+            pf.first_line_indent = Pt(-char_pt * 2)
+            pf.line_spacing = Pt(self.styles.layout.line_spacing_pt)
+            pf.space_after = Pt(0)
+            pf.space_before = Pt(0)
 
             bookmark_name = f"_Ref{ref.index}"
             bm_start = OxmlElement('w:bookmarkStart')

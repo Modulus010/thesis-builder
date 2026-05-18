@@ -18,7 +18,7 @@
 
 ![生成效果](examples/output-preview.png)
 
-完整编译效果见 [examples/thesis.pdf](examples/thesis.pdf)。该 PDF 由 `examples/compiler-thesis.md` 编译生成——它本身是一篇完整的论文，同时也是 DSL 语法的最佳参考。
+完整编译效果见 [examples/thesis.pdf](examples/thesis.pdf)，[格式检测报告](examples/格式检测报告.pdf)。该 word 由 [examples/compiler-thesis.md](examples/compiler-thesis.md) 编译生成——它本身是一篇完整的论文，同时也是 DSL 语法的最佳参考。
 
 ## 快速开始
 
@@ -230,6 +230,7 @@ python main.py <input.md> [-o output.docx] [options]
 本项目帮助你快速生成格式接近规范的初稿，**不保证 100% 满足所有格式要求**。
 
 - **目录需手动刷新：** 生成 .docx 后，需在 Word 中右键目录选择"更新域"
+- **续表问题:** 无法检测到表格被分割并自动加表题
 - **部分格式需微调：** 封面布局、特殊段落间距等细节可能需要手动调整
 - **内容责任自负：** 本工具只负责格式排版，论文内容的真实性、原创性和学术规范由作者本人负责
 
