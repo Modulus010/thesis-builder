@@ -48,6 +48,13 @@ def remove_theme_fonts(rFonts):
             del rFonts.attrib[attr]
 
 
+def remove_child_tags(parent, *tags):
+    for tag in tags:
+        el = parent.find(tag)
+        if el is not None:
+            parent.remove(el)
+
+
 def make_border(tag, val="single", sz="12"):
     el = OxmlElement(f"w:{tag}")
     el.set(qn("w:val"), val)

@@ -57,8 +57,7 @@ def main():
     _setup_logging(args.quiet, args.verbose)
 
     input_path = os.path.abspath(args.input)
-    output_path = os.path.abspath(args.output) if os.path.isabs(args.output) \
-                  else os.path.abspath(os.path.join(os.getcwd(), args.output))
+    output_path = os.path.abspath(args.output)
 
     config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "format.yaml")
     style_config = load_style_config(config_path)

@@ -22,7 +22,7 @@ from builder.styles import StyleConfig
 from builder.xml_helpers import (
     ensure_trPr, set_row_cant_split, set_row_table_header, set_spacing_lines,
     make_border, find_drawing_and_inline, build_anchor_from_inline,
-    remove_theme_fonts,
+    remove_theme_fonts, remove_child_tags,
 )
 from builder.numbering import collect_numbering, caption_with_number
 
@@ -45,9 +45,18 @@ class DocumentBuilder:
         self.doc = None
         self.thesis = None
         self.figures_dir = ""
+        self._body_font = self.styles.font("body")
         page = self.styles.page
         self._content_width_cm = page.get("width", 21.0) - page.get("margin_left", 3.0) - page.get("margin_right", 2.5)
         self._content_height_cm = page.get("height", 29.7) - page.get("margin_top", 2.5) - page.get("margin_bottom", 2.5)
+
+    def _is_body_default(self, font_cfg: Dict) -> bool:
+        return (font_cfg.get("name") == self._body_font.get("name")
+                and font_cfg.get("size") == self._body_font.get("size")
+                and font_cfg.get("bold") == self._body_font.get("bold"))
+
+    def _is_body_font_family(self, font_cfg: Dict) -> bool:
+        return font_cfg.get("name") == self._body_font.get("name")
 
     @staticmethod
     def _set_rfonts_on_rpr(rPr, east_asia: str, ascii_font: str = None, h_ansi: str = None):
@@ -66,12 +75,21 @@ class DocumentBuilder:
 
     def _apply_run_font(self, run, font_cfg: Dict):
         font_name = font_cfg.get("name", "宋体")
-        run.font.name = font_name
-        run.font.size = Pt(font_cfg.get("size", 12))
-        run.font.bold = font_cfg.get("bold", False)
-        ea = font_name if font_name in CJK_FONTS else "宋体"
-        self._set_rfonts(run, east_asia=ea, ascii_font="Times New Roman",
-                         h_ansi="Times New Roman")
+        if self._is_body_default(font_cfg):
+            return
+        bold = font_cfg.get("bold", False)
+        if bold:
+            run.font.bold = True
+        if self._is_body_font_family(font_cfg):
+            size = font_cfg.get("size", 12)
+            if size != self._body_font.get("size", 12):
+                run.font.size = Pt(size)
+        else:
+            run.font.name = font_name
+            run.font.size = Pt(font_cfg.get("size", 12))
+            ea = font_name if font_name in CJK_FONTS else "宋体"
+            self._set_rfonts(run, east_asia=ea, ascii_font="Times New Roman",
+                             h_ansi="Times New Roman")
 
     def _set_paragraph_text(self, para, text: str, font_key: str = "body",
                             with_line_spacing: bool = True):
@@ -126,9 +144,6 @@ class DocumentBuilder:
         run.font.superscript = True
 
     def _add_ref_hyperlink(self, para, ref_num: str, font_cfg: dict):
-        fn = font_cfg.get('name', '宋体')
-        size_val = str(int(font_cfg.get('size', 12) * 2))
-
         hl = OxmlElement('w:hyperlink')
         hl.set(qn('w:anchor'), f'_Ref{ref_num}')
         hl.set(qn('w:history'), '1')
@@ -140,14 +155,16 @@ class DocumentBuilder:
         rStyle.set(qn('w:val'), 'Hyperlink')
         rPr.append(rStyle)
 
-        rFonts = OxmlElement('w:rFonts')
-        if fn in CJK_FONTS:
-            rFonts.set(qn('w:eastAsia'), fn)
-        rPr.append(rFonts)
-
-        sz = OxmlElement('w:sz')
-        sz.set(qn('w:val'), size_val)
-        rPr.append(sz)
+        if not self._is_body_default(font_cfg):
+            fn = font_cfg.get('name', '宋体')
+            size_val = str(int(font_cfg.get('size', 12) * 2))
+            rFonts = OxmlElement('w:rFonts')
+            if fn in CJK_FONTS:
+                rFonts.set(qn('w:eastAsia'), fn)
+            rPr.append(rFonts)
+            sz = OxmlElement('w:sz')
+            sz.set(qn('w:val'), size_val)
+            rPr.append(sz)
 
         vertAlign = OxmlElement('w:vertAlign')
         vertAlign.set(qn('w:val'), 'superscript')
@@ -232,20 +249,6 @@ class DocumentBuilder:
         para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
         self._add_page_number_field(para, self.styles.font("page_number"))
 
-    def _clear_section_headers_footers(self, section):
-        section.header.is_linked_to_previous = False
-        section.footer.is_linked_to_previous = False
-        for para in section.header.paragraphs:
-            para.text = ""
-        for para in section.footer.paragraphs:
-            para.text = ""
-
-    def _remove_section_headers(self, section):
-        sectPr = section._sectPr
-        for tag in (qn('w:headerReference'), qn('w:footerReference')):
-            for el in sectPr.findall(tag):
-                sectPr.remove(el)
-
     def _set_page_number_format(self, section, fmt: str, start: int = None):
         sectPr = section._sectPr
         pgNumType = sectPr.find(qn("w:pgNumType"))
@@ -319,13 +322,17 @@ class DocumentBuilder:
         fn = fc.get("name", "宋体")
         style.font.name = fn
         style.font.size = Pt(fc.get("size", 12))
-        style.font.bold = fc.get("bold", False)
-        style.font.color.rgb = RGBColor(0, 0, 0)
+        bold = fc.get("bold", False)
+        if bold:
+            style.font.bold = True
         rPr = style.element.get_or_add_rPr()
+        if not bold:
+            remove_child_tags(rPr, qn("w:b"), qn("w:bCs"))
         self._set_rfonts_on_rpr(rPr, fn, "Times New Roman", "Times New Roman")
         rFonts = rPr.find(qn("w:rFonts"))
         if rFonts is not None:
             remove_theme_fonts(rFonts)
+        remove_child_tags(rPr, qn("w:color"))
         if alignment is not None:
             style.paragraph_format.alignment = alignment
 
@@ -338,71 +345,13 @@ class DocumentBuilder:
         for style_name, font_key, alignment in configs:
             self._apply_style_font(self.doc.styles[style_name], font_key, alignment)
 
-    def _define_heading_numbering(self):
-        try:
-            numbering_part = self.doc.part.numbering_part
-        except Exception:
-            return
-
-        numbering_el = numbering_part.element
-
-        abstractNum = OxmlElement("w:abstractNum")
-        abstractNum.set(qn("w:abstractNumId"), "10")
-
-        multiLevelType = OxmlElement("w:multiLevelType")
-        multiLevelType.set(qn("w:val"), "hybridMultilevel")
-        abstractNum.append(multiLevelType)
-
-        levels_cfg = [
-            ("decimal", "%1", None),
-            ("decimal", "%1.%2", 0),
-            ("decimal", "%1.%2.%3", 1),
-        ]
-        for ilvl, (fmt, text, restart_lvl) in enumerate(levels_cfg):
-            lvl = OxmlElement("w:lvl")
-            lvl.set(qn("w:ilvl"), str(ilvl))
-            lvl.set(qn("w:tplc"), "0")
-
-            start = OxmlElement("w:start")
-            start.set(qn("w:val"), "1")
-            lvl.append(start)
-
-            nfmt = OxmlElement("w:numFmt")
-            nfmt.set(qn("w:val"), fmt)
-            lvl.append(nfmt)
-
-            lt = OxmlElement("w:lvlText")
-            lt.set(qn("w:val"), text)
-            lvl.append(lt)
-
-            jc = OxmlElement("w:lvlJc")
-            jc.set(qn("w:val"), "left")
-            lvl.append(jc)
-
-            pPr = OxmlElement("w:pPr")
-            ind = OxmlElement("w:ind")
-            ind.set(qn("w:left"), "0")
-            ind.set(qn("w:hanging"), "0")
-            pPr.append(ind)
-            lvl.append(pPr)
-
-            if restart_lvl is not None:
-                r = OxmlElement("w:lvlRestart")
-                r.set(qn("w:val"), str(restart_lvl))
-                lvl.append(r)
-
-            abstractNum.append(lvl)
-
-        numbering_el.append(abstractNum)
-
-        num = OxmlElement("w:num")
-        num.set(qn("w:numId"), "10")
-        absId = OxmlElement("w:abstractNumId")
-        absId.set(qn("w:val"), "10")
-        num.append(absId)
-        numbering_el.append(num)
-
-    _HEADING_NUM_ID = "10"
+    def _define_caption_style(self):
+        style = self.doc.styles["Caption"]
+        self._apply_style_font(style, "figure_caption", WD_PARAGRAPH_ALIGNMENT.CENTER)
+        fmt = style.paragraph_format
+        fmt.line_spacing = Pt(self.styles.layout.line_spacing_pt)
+        fmt.space_before = Pt(0)
+        fmt.space_after = Pt(0)
 
     def _define_toc_styles(self):
         toc_configs = [
@@ -424,6 +373,25 @@ class DocumentBuilder:
                 style.paragraph_format.left_indent = Pt(indent)
                 style.paragraph_format.first_line_indent = Pt(0)
 
+    def _clean_all_theme_fonts(self):
+        for style in self.doc.styles:
+            rPr = style.element.find(qn("w:rPr"))
+            if rPr is not None:
+                rFonts = rPr.find(qn("w:rFonts"))
+                if rFonts is not None:
+                    remove_theme_fonts(rFonts)
+                remove_child_tags(rPr, qn("w:szCs"), qn("w:bCs"))
+
+    def _define_normal_style(self):
+        self._apply_style_font(self.doc.styles["Normal"], "body")
+
+    def _strip_empty_pPr_rPr(self):
+        for p in self.doc.paragraphs:
+            pPr = p._element.find(qn("w:pPr"))
+            if pPr is not None:
+                rPr = pPr.find(qn("w:rPr"))
+                if rPr is not None and len(rPr) == 0:
+                    pPr.remove(rPr)
 
     def _add_document_section(self, start_type, header_title: str,
                                page_format: str = "decimal", page_start: int = None):
@@ -443,8 +411,11 @@ class DocumentBuilder:
             self.figures_dir = os.path.join(thesis.basedir, self.styles.figures_path)
 
         self._define_heading_styles()
-        self._define_heading_numbering()
         self._define_toc_styles()
+        if self.styles.use_native_caption:
+            self._define_caption_style()
+        self._clean_all_theme_fonts()
+        self._define_normal_style()
 
         self._setup_section_margins(self.doc.sections[0])
 
@@ -503,23 +474,10 @@ class DocumentBuilder:
         self._add_document_section(WD_SECTION_START.NEW_PAGE, self._T_ACKNOWLEDGMENTS)
         self._build_acknowledgments()
 
-        # blank_sec = self._add_section(WD_SECTION_START.NEW_PAGE)
-        # self._clear_section_headers_footers(blank_sec)
-        #
-        # sec_back = self._add_section(WD_SECTION_START.NEW_PAGE)
-        # self._clear_section_headers_footers(sec_back)
-        # sec_back.top_margin = Cm(0)
-        # sec_back.bottom_margin = Cm(0)
-        # sec_back.left_margin = Cm(0)
-        # sec_back.right_margin = Cm(0)
-        # sec_back.header_distance = Cm(0)
-        # sec_back.footer_distance = Cm(0)
-        # self._remove_section_headers(sec_back)
-        # self._add_back_cover_page("cover_image2.jpeg")
-
         output_dir = os.path.dirname(output_path)
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
+        self._strip_empty_pPr_rPr()
         self.doc.save(output_path)
 
 
@@ -558,9 +516,6 @@ class DocumentBuilder:
         drawing_elem.replace(inline, anchor)
 
     def _add_cover_page(self, image_name: str):
-        self._add_full_page_image(image_name, behind_doc=True, allow_overlap=True)
-
-    def _add_back_cover_page(self, image_name: str):
         self._add_full_page_image(image_name, behind_doc=True, allow_overlap=True)
 
     def _build_cover(self):
@@ -672,6 +627,7 @@ class DocumentBuilder:
             for col_idx, text in enumerate([label, title, name]):
                 cell = table.cell(row_idx, col_idx)
                 cell.text = ""
+                self._clean_cell_paragraph(cell)
                 run = cell.paragraphs[0].add_run(text)
                 self._apply_run_font(run, self.styles.font("cover_english_detail"))
 
@@ -762,6 +718,7 @@ class DocumentBuilder:
 
     def _add_toc_field(self):
         para = self.doc.add_paragraph()
+        para.paragraph_format.first_line_indent = Pt(0)
 
         fld_begin = OxmlElement("w:fldChar")
         fld_begin.set(qn("w:fldCharType"), "begin")
@@ -832,16 +789,20 @@ class DocumentBuilder:
         seq_name = "Figure" if prefix == "图" else "Table"
 
         para = self._make_caption_para(keep_with_next)
+        native = self.styles.use_native_caption
 
         prefix_run = para.add_run(f"{prefix}{chapter}.")
-        self._apply_run_font(prefix_run, self.styles.font(font_key))
+        if not native:
+            self._apply_run_font(prefix_run, self.styles.font(font_key))
 
+        seq_font = font_key if not native else None
         self._add_seq_field(para, seq_name, reset=(sub_num == 1),
-                            reset_val=sub_num, font_key=font_key)
+                            reset_val=sub_num, font_key=seq_font)
 
         if caption:
             cap_run = para.add_run(f" {caption}")
-            self._apply_run_font(cap_run, self.styles.font(font_key))
+            if not native:
+                self._apply_run_font(cap_run, self.styles.font(font_key))
 
 
     _HEADING_STYLES = frozenset({"Heading 1", "Heading 2", "Heading 3"})
@@ -852,23 +813,13 @@ class DocumentBuilder:
         3: ("Heading 3", "section_title_2", WD_PARAGRAPH_ALIGNMENT.JUSTIFY, "subsection_before_lines", "subsection_after_lines"),
     }
 
-    def _add_heading(self, text: str, level: int, use_auto_number: bool = True):
+    def _add_heading(self, text: str, level: int):
         cfg = self._LEVEL_CONFIG[min(level, 3)]
         style_name, font_key, alignment, sb_key, sa_key = cfg
         para = self.doc.add_paragraph(text, style=style_name)
         para.alignment = alignment
         self._apply_line_spacing(para)
         set_spacing_lines(para, getattr(self.styles.layout, sb_key), getattr(self.styles.layout, sa_key))
-        if use_auto_number and level <= 3:
-            pPr = para._element.get_or_add_pPr()
-            numPr = OxmlElement("w:numPr")
-            ilvl = OxmlElement("w:ilvl")
-            ilvl.set(qn("w:val"), str(level - 1))
-            numId = OxmlElement("w:numId")
-            numId.set(qn("w:val"), self._HEADING_NUM_ID)
-            numPr.append(ilvl)
-            numPr.append(numId)
-            pPr.append(numPr)
         return para
 
     def _add_body_paragraph(self, text: str):
@@ -883,7 +834,7 @@ class DocumentBuilder:
             heading_text = f"{section.auto_number} {section.title}"
         else:
             heading_text = section.title
-        self._add_heading(heading_text, section.level, use_auto_number=False)
+        self._add_heading(heading_text, section.level)
 
         for item in section.items:
             if isinstance(item, str):
@@ -931,7 +882,11 @@ class DocumentBuilder:
             bm_start.set(qn('w:name'), bookmark_name)
             bm_end = OxmlElement('w:bookmarkEnd')
             bm_end.set(qn('w:id'), str(ref.index))
-            para._element.insert(0, bm_start)
+            pPr = para._element.find(qn("w:pPr"))
+            if pPr is not None:
+                pPr.addnext(bm_start)
+            else:
+                para._element.insert(0, bm_start)
             para._element.append(bm_end)
 
 
@@ -1034,6 +989,7 @@ class DocumentBuilder:
         for col_idx, header in enumerate(item.headers):
             cell = tbl.cell(0, col_idx)
             cell.text = ""
+            self._clean_cell_paragraph(cell)
             run = cell.paragraphs[0].add_run(header)
             self._apply_run_font(run, self.styles.font("table_caption"))
             run.font.bold = True
@@ -1043,6 +999,7 @@ class DocumentBuilder:
                 text = row_data[col_idx] if col_idx < len(row_data) else ""
                 cell = tbl.cell(row_idx + 1, col_idx)
                 cell.text = ""
+                self._clean_cell_paragraph(cell)
                 run = cell.paragraphs[0].add_run(text)
                 self._apply_run_font(run, self.styles.font("table_caption"))
 
@@ -1076,6 +1033,16 @@ class DocumentBuilder:
                 tcBorders = OxmlElement("w:tcBorders")
                 tcBorders.append(make_border("top", "single", "6"))
                 tcPr.append(tcBorders)
+
+    @staticmethod
+    def _clean_cell_paragraph(cell):
+        for para in cell.paragraphs:
+            pPr = para._element.find(qn("w:pPr"))
+            if pPr is not None:
+                remove_child_tags(pPr, qn("w:widowControl"), qn("w:bidi"), qn("w:spacing"))
+                rPr = pPr.find(qn("w:rPr"))
+                if rPr is not None and len(rPr) == 0:
+                    pPr.remove(rPr)
 
     def _add_code(self, code: CodeBlock):
         code_font = self.styles.font("code")
@@ -1126,7 +1093,10 @@ class DocumentBuilder:
         )
 
     def _make_caption_para(self, keep_with_next: bool = False):
-        para = self.doc.add_paragraph()
+        if self.styles.use_native_caption:
+            para = self.doc.add_paragraph(style="Caption")
+        else:
+            para = self.doc.add_paragraph()
         para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
         self._apply_line_spacing(para)
         set_spacing_lines(para, self.styles.layout.caption_before_lines, self.styles.layout.caption_after_lines)
@@ -1138,7 +1108,8 @@ class DocumentBuilder:
                                keep_with_next: bool = False):
         cap_para = self._make_caption_para(keep_with_next)
         cap_run = cap_para.add_run(text)
-        self._apply_run_font(cap_run, self.styles.font(font_key))
+        if not self.styles.use_native_caption:
+            self._apply_run_font(cap_run, self.styles.font(font_key))
 
     def _add_error_paragraph(self, message: str):
         para = self.doc.add_paragraph(message)

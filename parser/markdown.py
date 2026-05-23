@@ -157,16 +157,20 @@ def _parse_abstract(lines, pos, lang):
         h = _match_heading(stripped)
         if h:
             break
-        if lang == "cn" and _KW_CN_RE.match(stripped):
-            kw_text = _KW_CN_RE.sub('', stripped)
-            keywords = [k.strip() for k in kw_text.split('；') if k.strip()]
-            pos += 1
-            break
-        if lang == "en" and _KW_EN_RE.match(stripped):
-            kw_text = re.sub(r'^Key\s*words[:\s]*', '', stripped, flags=re.IGNORECASE)
-            keywords = [k.strip() for k in kw_text.split(';') if k.strip()]
-            pos += 1
-            break
+        if lang == "cn":
+            m = _KW_CN_RE.match(stripped)
+            if m:
+                kw_text = stripped[m.end():]
+                keywords = [k.strip() for k in kw_text.split('；') if k.strip()]
+                pos += 1
+                break
+        if lang == "en":
+            m = _KW_EN_RE.match(stripped)
+            if m:
+                kw_text = stripped[m.end():]
+                keywords = [k.strip() for k in kw_text.split(';') if k.strip()]
+                pos += 1
+                break
         abstract.append(stripped)
         pos += 1
     return pos, abstract, keywords
@@ -282,9 +286,8 @@ def _handle_directive(lines, pos, line_no, section, thesis):
         result = _parse_directive(stripped)
         if result:
             positional, options = result
-            if positional and "=" in positional[0]:
-                k, v = positional[0].split("=", 1)
-                options[k.strip().lower()] = v.strip().strip('"').strip("'")
+            if positional:
+                options.update(_parse_options(positional[0]))
             pos += 1
             pos, content = _consume_block(lines, pos)
             section.items.append(PlantUMLBlock(
