@@ -471,7 +471,7 @@ class DocumentBuilder:
             self._add_document_section(WD_SECTION_START.ODD_PAGE, self._T_APPENDIX)
             self._build_appendix()
 
-        self._add_document_section(WD_SECTION_START.NEW_PAGE, self._T_ACKNOWLEDGMENTS)
+        self._add_document_section(WD_SECTION_START.ODD_PAGE, self._T_ACKNOWLEDGMENTS)
         self._build_acknowledgments()
 
         output_dir = os.path.dirname(output_path)
