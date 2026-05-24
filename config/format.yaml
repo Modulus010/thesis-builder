@@ -164,7 +164,7 @@ fonts:
 
   # 目录章标题
   toc_chapter:
-    name: 宋体
+    name: 黑体
     size: 14       # 四号
 
   # 目录其他内容
@@ -180,15 +180,15 @@ fonts:
 
   # 致谢标题
   acknowledgments_title:
-    name: 宋体
-    size: 12       # 小四号
-    bold: true
+    name: 黑体
+    size: 18       # 小二号
+    bold: false
 
   # 附录标题
   appendix_title:
     name: 黑体
-    size: 14       # 四号
-    bold: true
+    size: 18       # 小二号
+    bold: false
 
   # 参考文献内容
   references_body:

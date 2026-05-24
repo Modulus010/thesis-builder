@@ -534,13 +534,12 @@ class DocumentBuilder:
 
         self._add_cover_spacer(24)
 
-        for label, value in [
+        self._add_cover_info_table([
             ("学院名称", meta.college),
             ("专业名称", meta.major),
             ("学生姓名", meta.student_name),
             ("指导教师", meta.advisor),
-        ]:
-            self._add_cover_detail_line(f"{label}  {value}")
+        ])
 
         self._add_cover_spacer(24)
 
@@ -576,16 +575,15 @@ class DocumentBuilder:
 
         self._add_cover_spacer(self.styles.layout.cover_spacer_info)
 
-        for label, value in [
+        info_rows = [(l, v) for l, v in [
             ("学 院 名 称", meta.college),
             ("专 业 名 称", meta.major),
             ("学 生 姓 名", meta.student_name),
             ("指 导 教 师", meta.advisor),
             ("副指导教师", meta.co_advisor),
-        ]:
-            if not value:
-                continue
-            self._add_cover_detail_line(f"{label}：{value}")
+        ] if v]
+        if info_rows:
+            self._add_cover_info_table(info_rows, separator="：")
 
         self._add_cover_spacer(self.styles.layout.cover_spacer_info)
 
@@ -648,6 +646,47 @@ class DocumentBuilder:
         spacer = self.doc.add_paragraph()
         spacer.paragraph_format.space_before = Pt(pt)
         spacer.paragraph_format.space_after = Pt(0)
+
+    def _remove_table_borders(self, table):
+        tbl_element = table._tbl
+        tblPr = tbl_element.find(qn("w:tblPr"))
+        if tblPr is None:
+            tblPr = OxmlElement("w:tblPr")
+            tbl_element.insert(0, tblPr)
+        existing = tblPr.find(qn("w:tblBorders"))
+        if existing is not None:
+            tblPr.remove(existing)
+        borders = OxmlElement("w:tblBorders")
+        for edge in ("top", "left", "bottom", "right", "insideH", "insideV"):
+            borders.append(make_border(edge, "none", "0"))
+        tblPr.append(borders)
+
+    def _add_cover_info_table(self, rows, font_key="cover_info", separator="  "):
+        table = self.doc.add_table(rows=len(rows), cols=2)
+        self._remove_table_borders(table)
+
+        font = self.styles.font(font_key)
+        space_after = Pt(self.styles.layout.cover_detail_space_after_pt)
+
+        for row_idx, (label, value) in enumerate(rows):
+            lc = table.cell(row_idx, 0)
+            vc = table.cell(row_idx, 1)
+
+            self._clean_cell_paragraph(lc)
+            lp = lc.paragraphs[0]
+            lp.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+            lp.paragraph_format.space_after = Pt(0)
+            lp.paragraph_format.space_before = Pt(0)
+            lr = lp.add_run(f"{label}{separator}")
+            self._apply_run_font(lr, font)
+
+            self._clean_cell_paragraph(vc)
+            vp = vc.paragraphs[0]
+            vp.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+            vp.paragraph_format.space_after = space_after
+            vp.paragraph_format.space_before = Pt(0)
+            vr = vp.add_run(value)
+            self._apply_run_font(vr, font)
 
     def _add_cover_detail_line(self, text: str, font_key: str = "cover_info"):
         para = self.doc.add_paragraph()
