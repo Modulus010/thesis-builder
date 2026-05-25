@@ -474,6 +474,20 @@ class DocumentBuilder:
         self._add_document_section(WD_SECTION_START.ODD_PAGE, self._T_ACKNOWLEDGMENTS)
         self._build_acknowledgments()
 
+        sec_blank = self._add_section(WD_SECTION_START.ODD_PAGE)
+        sec_blank.header.is_linked_to_previous = False
+        sec_blank.header.paragraphs[0].text = ""
+        sec_blank.footer.is_linked_to_previous = False
+        sec_blank.footer.paragraphs[0].text = ""
+        self.doc.add_paragraph()
+
+        sec_back = self._add_section(WD_SECTION_START.NEW_PAGE)
+        sec_back.header.is_linked_to_previous = False
+        sec_back.header.paragraphs[0].text = ""
+        sec_back.footer.is_linked_to_previous = False
+        sec_back.footer.paragraphs[0].text = ""
+        self._build_back_cover()
+
         output_dir = os.path.dirname(output_path)
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
@@ -641,6 +655,10 @@ class DocumentBuilder:
         date_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
         date_run = date_para.add_run(f"{month_name} {meta.year}")
         self._apply_run_font(date_run, self.styles.font("cover_english_date"))
+
+    def _build_back_cover(self):
+        self._add_full_page_image("cover_image2.jpeg", behind_doc=False,
+                                   allow_overlap=True, center=True)
 
     def _add_cover_spacer(self, pt: int):
         spacer = self.doc.add_paragraph()
