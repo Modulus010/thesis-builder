@@ -9,23 +9,15 @@ import yaml
 class LayoutMetrics:
     first_line_indent_pt: float = 24.0
     cover_line_spacing_pt: float = 32.0
-    cover_detail_space_after_pt: float = 6.0
-    cover_spacer_id: int = 12
-    cover_spacer_title: int = 24
-    cover_spacer_info: int = 36
-    cover_spacer_english: int = 72
-    cover_spacer_english_after_title: int = 24
     chapter_before_lines: int = 80
     chapter_after_lines: int = 50
     section_before_lines: int = 50
     section_after_lines: int = 50
-    subsection_before_lines: int = 0
-    subsection_after_lines: int = 0
+    subsection_before_lines: int = 50
+    subsection_after_lines: int = 50
     caption_before_lines: int = 50
     caption_after_lines: int = 50
-    declaration_title_space_lines: int = 100
-    declaration_body_space_after_pt: float = 48.0
-    abstract_body_space_after_pt: float = 0.0
+
     line_spacing_pt: float = 23.0
 
 

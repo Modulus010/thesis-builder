@@ -11,27 +11,18 @@ page:
   header_distance: 1.5
   footer_distance: 1.5
 
-# 布局常量（替代代码中硬编码的 Pt() 值）
+# 布局常量
 layout:
   first_line_indent_pt: 24
   cover_line_spacing_pt: 32
-  cover_detail_space_after_pt: 6
-  cover_spacer_id: 12
-  cover_spacer_title: 24
-  cover_spacer_info: 36
-  cover_spacer_english: 72
-  cover_spacer_english_after_title: 24
   chapter_before_lines: 80    # 章标题段前0.8行
   chapter_after_lines: 50     # 章标题段后0.5行
   section_before_lines: 50    # 节标题段前0.5行
   section_after_lines: 50     # 节标题段后0.5行
-  subsection_before_lines: 0  # 小节标题段前0行
-  subsection_after_lines: 0   # 小节标题段后0行
+  subsection_before_lines: 50  # 小节标题段前0.5行
+  subsection_after_lines: 50   # 小节标题段后0.5行
   caption_before_lines: 50    # 图题/表题段前0.5行
   caption_after_lines: 50     # 图题/表题段后0.5行
-  declaration_title_space_lines: 100  # 声明标题段前段后各约1行
-  declaration_body_space_after_pt: 48
-  abstract_body_space_after_pt: 0
   line_spacing_pt: 23       # 正文固定行距23磅
 
 # 字体设置
@@ -44,10 +35,14 @@ fonts:
     name: 宋体
     size: 26       # 一号
     bold: true
+  cover_first_title:
+    name: 宋体
+    size: 15       # 小三号
+    bold: true
   cover_thesis_title:
     name: 黑体
     size: 22       # 二号
-    bold: true
+    bold: false
   cover_english_title:
     name: Times New Roman
     size: 22       # 二号
@@ -65,7 +60,6 @@ fonts:
   cover_english_university:
     name: Times New Roman
     size: 16
-    bold: true
   cover_english_date:
     name: Times New Roman
     size: 16

@@ -11,7 +11,7 @@ try:
 except ImportError:
     PILImage = None
 from docx import Document
-from docx.shared import Pt, Cm, Inches, RGBColor
+from docx.shared import Pt, Cm, Inches, RGBColor, Twips
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT, WD_LINE_SPACING
 from docx.enum.section import WD_SECTION_START
 from docx.enum.style import WD_STYLE_TYPE
@@ -288,10 +288,10 @@ class DocumentBuilder:
                              style: str = "Heading 1",
                              alignment=WD_PARAGRAPH_ALIGNMENT.CENTER,
                              space_before: int = None,
-                             space_after: int = None):
+                             space_after: int = None,
+                             toc_level: int = None):
         para = self.doc.add_paragraph(text, style=style)
         para.alignment = alignment
-        self._apply_line_spacing(para)
         if style not in self._HEADING_STYLES:
             for run in para.runs:
                 self._apply_run_font(run, self.styles.font(font_key))
@@ -300,6 +300,11 @@ class DocumentBuilder:
             space_before if space_before is not None else self.styles.layout.chapter_before_lines,
             space_after if space_after is not None else self.styles.layout.chapter_after_lines,
         )
+        if toc_level is not None:
+            pPr = para._element.get_or_add_pPr()
+            ol = OxmlElement('w:outlineLvl')
+            ol.set(qn('w:val'), str(toc_level))
+            pPr.append(ol)
         return para
 
     def _add_page_number_field(self, para, font_cfg: Dict):
@@ -368,6 +373,8 @@ class DocumentBuilder:
                 style = self.doc.styles.add_style(style_name, WD_STYLE_TYPE.PARAGRAPH)
             self._apply_style_font(style, font_key)
             style.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
+            style.paragraph_format.space_before = Pt(0)
+            style.paragraph_format.space_after = Pt(0)
             indent = toc_indent_pt.get(level, 0)
             if indent:
                 style.paragraph_format.left_indent = Pt(indent)
@@ -384,6 +391,8 @@ class DocumentBuilder:
 
     def _define_normal_style(self):
         self._apply_style_font(self.doc.styles["Normal"], "body")
+        self.doc.styles["Normal"].paragraph_format.space_before = Pt(0)
+        self.doc.styles["Normal"].paragraph_format.space_after = Pt(0)
 
     def _strip_empty_pPr_rPr(self):
         for p in self.doc.paragraphs:
@@ -404,6 +413,11 @@ class DocumentBuilder:
     def build(self, thesis: Thesis, output_path: str):
         self.doc = Document()
         self.thesis = thesis
+
+        meta = thesis.metadata
+        self.doc.core_properties.title = meta.title
+        self.doc.core_properties.author = meta.student_name
+        self.doc.core_properties.subject = f"{meta.college} {meta.major} 毕业设计"
 
         collect_numbering(thesis)
 
@@ -537,25 +551,22 @@ class DocumentBuilder:
 
         meta = self.thesis.metadata
 
-        self._add_cover_spacer(210)
+        self._add_cover_spacer(244)
 
-        self._add_cover_detail_line("论文题目")
-        title_para = self.doc.add_paragraph()
-        title_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-        title_para.paragraph_format.line_spacing = Pt(self.styles.layout.cover_line_spacing_pt)
-        title_run = title_para.add_run(meta.title)
-        self._apply_run_font(title_run, self.styles.font("cover_thesis_title"))
-
-        self._add_cover_spacer(24)
-
-        self._add_cover_info_table([
+        info_rows = [(l, v) for l, v in [
             ("学院名称", meta.college),
             ("专业名称", meta.major),
             ("学生姓名", meta.student_name),
             ("指导教师", meta.advisor),
-        ])
+            ("", meta.co_advisor),
+        ] if v]
+        cw = self._text_width_twips()
+        self._add_cover_info_table(info_rows,
+            col_widths=(round(cw * 2 / 5), round(cw * 3 / 5)),
+            bold_label=True,
+            first_row=("论文题目", meta.title, "cover_first_title"))
 
-        self._add_cover_spacer(24)
+        self._add_cover_spacer(104)
 
         cn_year = _chinese_year(meta.year)
         cn_month = _chinese_month(meta.month)
@@ -572,14 +583,14 @@ class DocumentBuilder:
         id_run = id_para.add_run(f"学号  {meta.student_id}                密级  ")
         self._apply_run_font(id_run, self.styles.font("cover_id"))
 
-        self._add_cover_spacer(self.styles.layout.cover_spacer_id)
+        self._add_cover_spacer(36)
 
         uni_para = self.doc.add_paragraph()
         uni_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
         uni_run = uni_para.add_run("东北大学本科毕业论文")
         self._apply_run_font(uni_run, self.styles.font("cover_school_name"))
 
-        self._add_cover_spacer(self.styles.layout.cover_spacer_title)
+        self._add_cover_spacer(72)
 
         title_para = self.doc.add_paragraph()
         title_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
@@ -587,19 +598,19 @@ class DocumentBuilder:
         title_run = title_para.add_run(meta.title)
         self._apply_run_font(title_run, self.styles.font("cover_thesis_title"))
 
-        self._add_cover_spacer(self.styles.layout.cover_spacer_info)
+        self._add_cover_spacer(108)
 
         info_rows = [(l, v) for l, v in [
             ("学 院 名 称", meta.college),
             ("专 业 名 称", meta.major),
             ("学 生 姓 名", meta.student_name),
             ("指 导 教 师", meta.advisor),
-            ("副指导教师", meta.co_advisor),
+            ("", meta.co_advisor),
         ] if v]
         if info_rows:
             self._add_cover_info_table(info_rows, separator="：")
 
-        self._add_cover_spacer(self.styles.layout.cover_spacer_info)
+        self._add_cover_spacer(145)
 
         date_para = self.doc.add_paragraph()
         date_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
@@ -609,7 +620,7 @@ class DocumentBuilder:
     def _build_english_cover(self):
         meta = self.thesis.metadata
 
-        self._add_cover_spacer(self.styles.layout.cover_spacer_english)
+        self._add_cover_spacer(167)
 
         eng_title_para = self.doc.add_paragraph()
         eng_title_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
@@ -617,14 +628,14 @@ class DocumentBuilder:
         eng_title_run = eng_title_para.add_run(meta.english_title)
         self._apply_run_font(eng_title_run, self.styles.font("cover_english_title"))
 
-        self._add_cover_spacer(self.styles.layout.cover_spacer_english_after_title)
+        self._add_cover_spacer(56)
 
         by_para = self.doc.add_paragraph()
         by_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
         by_run = by_para.add_run(f"by {meta.student_name}")
         self._apply_run_font(by_run, self.styles.font("cover_english_detail"))
 
-        self._add_cover_spacer(self.styles.layout.cover_spacer_english_after_title)
+        self._add_cover_spacer(56)
 
         table = self.doc.add_table(rows=2, cols=3)
         table.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
@@ -638,12 +649,13 @@ class DocumentBuilder:
         for row_idx, (label, title, name) in enumerate(cells):
             for col_idx, text in enumerate([label, title, name]):
                 cell = table.cell(row_idx, col_idx)
-                cell.text = ""
-                self._clean_cell_paragraph(cell)
+                self._clean_cell(cell)
                 run = cell.paragraphs[0].add_run(text)
                 self._apply_run_font(run, self.styles.font("cover_english_detail"))
+                if col_idx == 0:
+                    cell.paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
 
-        self._add_cover_spacer(self.styles.layout.cover_spacer_info)
+        self._add_cover_spacer(168)
 
         uni_para = self.doc.add_paragraph()
         uni_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
@@ -662,6 +674,7 @@ class DocumentBuilder:
 
     def _add_cover_spacer(self, pt: int):
         spacer = self.doc.add_paragraph()
+        spacer.paragraph_format.line_spacing = Pt(1)
         spacer.paragraph_format.space_before = Pt(pt)
         spacer.paragraph_format.space_after = Pt(0)
 
@@ -679,46 +692,84 @@ class DocumentBuilder:
             borders.append(make_border(edge, "none", "0"))
         tblPr.append(borders)
 
-    def _add_cover_info_table(self, rows, font_key="cover_info", separator="  "):
-        table = self.doc.add_table(rows=len(rows), cols=2)
+
+    def _add_cover_info_table(self, rows, font_key="cover_info", separator="  ",
+                               col_widths=None, bold_label=False,
+                               first_row=None):
+        num_rows = len(rows) + (1 if first_row else 0)
+        table = self.doc.add_table(rows=num_rows, cols=2)
         self._remove_table_borders(table)
 
+        if col_widths is not None:
+            for row in table.rows:
+                row.cells[0].width = Twips(col_widths[0])
+                row.cells[1].width = Twips(col_widths[1])
+            tbl_grid = table._tbl.find(qn("w:tblGrid"))
+            if tbl_grid is not None:
+                for gi, gc in enumerate(tbl_grid.findall(qn("w:gridCol"))):
+                    gc.set(qn("w:w"), str(col_widths[gi]))
+
         font = self.styles.font(font_key)
-        space_after = Pt(self.styles.layout.cover_detail_space_after_pt)
 
-        for row_idx, (label, value) in enumerate(rows):
-            lc = table.cell(row_idx, 0)
-            vc = table.cell(row_idx, 1)
+        data_start = 0
+        if first_row is not None:
+            data_start = 1
+            label, value, value_font_key = first_row
+            lc = table.cell(0, 0)
+            vc = table.cell(0, 1)
 
-            self._clean_cell_paragraph(lc)
+            self._clean_cell(lc)
             lp = lc.paragraphs[0]
             lp.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
             lp.paragraph_format.space_after = Pt(0)
             lp.paragraph_format.space_before = Pt(0)
             lr = lp.add_run(f"{label}{separator}")
             self._apply_run_font(lr, font)
+            lr.bold = True
 
-            self._clean_cell_paragraph(vc)
+            self._clean_cell(vc)
             vp = vc.paragraphs[0]
             vp.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
-            vp.paragraph_format.space_after = space_after
+            vp.paragraph_format.space_after = Pt(0)
+            vp.paragraph_format.space_before = Pt(0)
+            vp.paragraph_format.line_spacing = Pt(self.styles.layout.cover_line_spacing_pt)
+            vr = vp.add_run(value)
+            self._apply_run_font(vr, self.styles.font(value_font_key))
+            vr.bold = True
+
+        for row_idx, (label, value) in enumerate(rows):
+            ri = row_idx + data_start
+            lc = table.cell(ri, 0)
+            vc = table.cell(ri, 1)
+
+            self._clean_cell(lc)
+            lp = lc.paragraphs[0]
+            lp.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+            lp.paragraph_format.space_after = Pt(0)
+            lp.paragraph_format.space_before = Pt(0)
+            if label:
+                lr = lp.add_run(f"{label}{separator}")
+                self._apply_run_font(lr, font)
+                if bold_label:
+                    lr.bold = True
+
+            self._clean_cell(vc)
+            vp = vc.paragraphs[0]
+            vp.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+            vp.paragraph_format.space_after = Pt(0)
             vp.paragraph_format.space_before = Pt(0)
             vr = vp.add_run(value)
             self._apply_run_font(vr, font)
 
-    def _add_cover_detail_line(self, text: str, font_key: str = "cover_info"):
-        para = self.doc.add_paragraph()
-        para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-        run = para.add_run(text)
-        self._apply_run_font(run, self.styles.font(font_key))
-        para.paragraph_format.space_after = Pt(self.styles.layout.cover_detail_space_after_pt)
-
 
     def _build_declaration(self):
+        line_spacing = Pt(self.styles.layout.line_spacing_pt)
+        decl_indent = Pt(self.styles.font("declaration_body").get("size", 14) * 2)
+
+        self._add_cover_spacer(60)
+
         self._add_title_paragraph(self._T_DECLARATION, "declaration_title",
-                                  style="Normal",
-                                  space_before=self.styles.layout.declaration_title_space_lines,
-                                  space_after=self.styles.layout.declaration_title_space_lines)
+                                  style="Normal")
 
         decl_text = (
             "本人呈交的学位论文，是在导师的指导下，独立进行研究工作所取得的成果，"
@@ -729,22 +780,26 @@ class DocumentBuilder:
         )
         decl_para = self.doc.add_paragraph()
         self._set_paragraph_text(decl_para, decl_text, "declaration_body", True)
-        decl_para.paragraph_format.alignment = WD_PARAGRAPH_ALIGNMENT.JUSTIFY
-        decl_para.paragraph_format.first_line_indent = Pt(self.styles.layout.first_line_indent_pt)
-        decl_para.paragraph_format.line_spacing = Pt(self.styles.layout.line_spacing_pt)
-        decl_para.paragraph_format.space_after = Pt(0)
+        decl_para.paragraph_format.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+        decl_para.paragraph_format.first_line_indent = decl_indent
+        decl_para.paragraph_format.line_spacing = line_spacing
         decl_para.paragraph_format.space_before = Pt(0)
+        decl_para.paragraph_format.space_after = Pt(0)
+
+        self._add_cover_spacer(120)
 
         sign_para = self.doc.add_paragraph()
-        sign_para.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
-        self._set_paragraph_text(sign_para, "本人签名：________________      日期：_______________",
+        sign_para.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
+        sign_para.paragraph_format.first_line_indent = decl_indent
+        sign_para.paragraph_format.line_spacing = line_spacing
+        self._set_paragraph_text(sign_para, "本人签名：                日期：",
                                  "declaration_body", True)
 
 
     def _build_abstract_section(self, *, title, title_font, lines, body_font,
                                  indent=False, justify=False,
                                  kw_label, kw_label_font, keywords, kw_font, kw_sep):
-        self._add_title_paragraph(title, title_font, style="Normal")
+        self._add_title_paragraph(title, title_font, style="Normal", toc_level=0)
 
         for line in lines:
             if not line.strip():
@@ -755,7 +810,6 @@ class DocumentBuilder:
                 para.paragraph_format.first_line_indent = Pt(self.styles.layout.first_line_indent_pt)
             if justify:
                 para.paragraph_format.alignment = WD_PARAGRAPH_ALIGNMENT.JUSTIFY
-            para.paragraph_format.space_after = Pt(self.styles.layout.abstract_body_space_after_pt)
 
         self.doc.add_paragraph()
 
@@ -769,7 +823,7 @@ class DocumentBuilder:
 
 
     def _build_toc(self):
-        self._add_title_paragraph(self._T_TOC, "toc_title", style="Normal")
+        self._add_title_paragraph(self._T_TOC, "toc_title", style="Normal", toc_level=0)
 
         self._add_toc_field()
 
@@ -875,7 +929,6 @@ class DocumentBuilder:
         style_name, font_key, alignment, sb_key, sa_key = cfg
         para = self.doc.add_paragraph(text, style=style_name)
         para.alignment = alignment
-        self._apply_line_spacing(para)
         set_spacing_lines(para, getattr(self.styles.layout, sb_key), getattr(self.styles.layout, sa_key))
         return para
 
@@ -919,7 +972,7 @@ class DocumentBuilder:
 
 
     def _build_references(self):
-        self._add_title_paragraph(self._T_REFERENCES, "references_title")
+        self._add_title_paragraph(self._T_REFERENCES, "references_title", toc_level=0)
 
         for ref in self.thesis.references:
             para = self.doc.add_paragraph()
@@ -948,14 +1001,14 @@ class DocumentBuilder:
 
 
     def _build_appendix(self):
-        self._add_title_paragraph(self._T_APPENDIX, "appendix_title")
+        self._add_title_paragraph(self._T_APPENDIX, "appendix_title", toc_level=0)
 
         for section in self.thesis.appendix_sections:
             self._build_section(section)
 
 
     def _build_acknowledgments(self):
-        self._add_title_paragraph(self._T_ACKNOWLEDGMENTS, "acknowledgments_title")
+        self._add_title_paragraph(self._T_ACKNOWLEDGMENTS, "acknowledgments_title", toc_level=0)
 
         for line in self.thesis.acknowledgments:
             if not line.strip():
@@ -1045,8 +1098,7 @@ class DocumentBuilder:
 
         for col_idx, header in enumerate(item.headers):
             cell = tbl.cell(0, col_idx)
-            cell.text = ""
-            self._clean_cell_paragraph(cell)
+            self._clean_cell(cell)
             run = cell.paragraphs[0].add_run(header)
             self._apply_run_font(run, self.styles.font("table_caption"))
             run.font.bold = True
@@ -1055,8 +1107,7 @@ class DocumentBuilder:
             for col_idx in range(num_cols):
                 text = row_data[col_idx] if col_idx < len(row_data) else ""
                 cell = tbl.cell(row_idx + 1, col_idx)
-                cell.text = ""
-                self._clean_cell_paragraph(cell)
+                self._clean_cell(cell)
                 run = cell.paragraphs[0].add_run(text)
                 self._apply_run_font(run, self.styles.font("table_caption"))
 
@@ -1092,9 +1143,12 @@ class DocumentBuilder:
                 tcPr.append(tcBorders)
 
     @staticmethod
-    def _clean_cell_paragraph(cell):
+    def _clean_cell(cell):
         for para in cell.paragraphs:
-            pPr = para._element.find(qn("w:pPr"))
+            p_elem = para._element
+            for r in list(p_elem.findall(qn("w:r"))):
+                p_elem.remove(r)
+            pPr = p_elem.find(qn("w:pPr"))
             if pPr is not None:
                 remove_child_tags(pPr, qn("w:widowControl"), qn("w:bidi"), qn("w:spacing"))
                 rPr = pPr.find(qn("w:rPr"))
@@ -1124,7 +1178,9 @@ class DocumentBuilder:
             uml_source = f"@startuml\n{uml_source}\n@enduml"
 
         cmd = ["plantuml", "-charset", "UTF-8", "-tpng", "-pipe",
-               "-DskinParam.backgroundColor=transparent"]
+               "-DskinParam.backgroundColor=transparent",
+               "-Smonochrome=true", "-Sshadowing=false",
+               "-SdefaultFontName=SimSun", "-SdefaultFontSize=10"]
         try:
             result = subprocess.run(
                 cmd, input=uml_source.encode("utf-8"),
