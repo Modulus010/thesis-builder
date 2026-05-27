@@ -13,8 +13,8 @@ class LayoutMetrics:
     chapter_after_lines: int = 50
     section_before_lines: int = 50
     section_after_lines: int = 50
-    subsection_before_lines: int = 50
-    subsection_after_lines: int = 50
+    subsection_before_lines: int = 0
+    subsection_after_lines: int = 0
     caption_before_lines: int = 50
     caption_after_lines: int = 50
 

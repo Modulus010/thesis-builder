@@ -19,8 +19,8 @@ layout:
   chapter_after_lines: 50     # 章标题段后0.5行
   section_before_lines: 50    # 节标题段前0.5行
   section_after_lines: 50     # 节标题段后0.5行
-  subsection_before_lines: 50  # 小节标题段前0.5行
-  subsection_after_lines: 50   # 小节标题段后0.5行
+  subsection_before_lines: 0
+  subsection_after_lines: 0
   caption_before_lines: 50    # 图题/表题段前0.5行
   caption_after_lines: 50     # 图题/表题段后0.5行
   line_spacing_pt: 23       # 正文固定行距23磅
