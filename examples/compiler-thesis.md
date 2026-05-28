@@ -3,11 +3,12 @@ title: 东北大学论文编译器设计与实现
 english_title: Design and Implementation of NEU Thesis Compiler
 student_id: 2025DEMO
 student_name: Claude
+english_name: Claude
 advisor: modulus
+english_advisor: modulus
 college: 软件学院
 major: 软件工程
-year: 2025
-month: 6
+date: 2025-06
 ---
 
 # 摘要
@@ -155,8 +156,17 @@ class Section {
 
 class Metadata {
   +title : str
+  +english_title : str
   +student_id : str
   +student_name : str
+  +english_name : str
+  +advisor : str
+  +english_advisor : str
+  +co_advisor : str
+  +english_co_advisor : str
+  +college : str
+  +major : str
+  +date : str
 }
 
 class Figure {
