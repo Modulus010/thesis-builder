@@ -114,8 +114,7 @@ def thesis_to_markdown(thesis: Thesis, output_path: str):
     lines.append(f'advisor: {thesis.metadata.advisor or "导师姓名 教授"}')
     lines.append(f'college: {thesis.metadata.college or "软件学院"}')
     lines.append(f'major: {thesis.metadata.major or "软件工程"}')
-    lines.append(f'year: {thesis.metadata.year or "2025"}')
-    lines.append(f'month: {thesis.metadata.month or "6"}')
+    lines.append(f'date: {thesis.metadata.date or "2025-06"}')
     lines.append('---')
     lines.append('')
 

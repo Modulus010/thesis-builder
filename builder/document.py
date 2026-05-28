@@ -245,7 +245,8 @@ class DocumentBuilder:
     def _setup_footer(self, section):
         section.footer.is_linked_to_previous = False
         para = section.footer.paragraphs[0]
-        para.text = ""
+        for r in para._element.findall(qn('w:r')):
+            para._element.remove(r)
         para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
         self._add_page_number_field(para, self.styles.font("page_number"))
 
@@ -349,6 +350,10 @@ class DocumentBuilder:
         ]
         for style_name, font_key, alignment in configs:
             self._apply_style_font(self.doc.styles[style_name], font_key, alignment)
+            fmt = self.doc.styles[style_name].paragraph_format
+            fmt.line_spacing = 1.0
+            fmt.space_before = Pt(0)
+            fmt.space_after = Pt(0)
 
     def _define_caption_style(self):
         style = self.doc.styles["Caption"]
@@ -389,6 +394,18 @@ class DocumentBuilder:
                     remove_theme_fonts(rFonts)
                 remove_child_tags(rPr, qn("w:szCs"), qn("w:bCs"))
 
+    def _define_body_text_style(self):
+        try:
+            style = self.doc.styles["Body Text"]
+        except KeyError:
+            style = self.doc.styles.add_style("Body Text", WD_STYLE_TYPE.PARAGRAPH)
+        self._apply_style_font(style, "body", WD_PARAGRAPH_ALIGNMENT.JUSTIFY)
+        fmt = style.paragraph_format
+        fmt.line_spacing = Pt(self.styles.layout.line_spacing_pt)
+        fmt.first_line_indent = Pt(self.styles.layout.first_line_indent_pt)
+        fmt.space_before = Pt(0)
+        fmt.space_after = Pt(0)
+
     def _define_normal_style(self):
         self._apply_style_font(self.doc.styles["Normal"], "body")
         self.doc.styles["Normal"].paragraph_format.space_before = Pt(0)
@@ -426,6 +443,7 @@ class DocumentBuilder:
 
         self._define_heading_styles()
         self._define_toc_styles()
+        self._define_body_text_style()
         if self.styles.use_native_caption:
             self._define_caption_style()
         self._clean_all_theme_fonts()
@@ -632,18 +650,19 @@ class DocumentBuilder:
 
         by_para = self.doc.add_paragraph()
         by_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-        by_run = by_para.add_run(f"by {meta.student_name}")
+        by_run = by_para.add_run(f"by {meta.english_name or meta.student_name}")
         self._apply_run_font(by_run, self.styles.font("cover_english_detail"))
 
         self._add_cover_spacer(56)
 
         table = self.doc.add_table(rows=2, cols=3)
         table.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-        co_name = meta.co_advisor.split()[0] if meta.co_advisor else ""
+        co_name = meta.english_co_advisor or (meta.co_advisor.split()[0] if meta.co_advisor else "")
         co_title = "Engineer" if "工程师" in (meta.co_advisor or "") else "Professor"
         advisor_title = "Associate Professor" if "副教授" in (meta.advisor or "") else "Professor"
+        advisor_name = meta.english_advisor or (meta.advisor.split()[0] if meta.advisor else "")
         cells = [
-            ("Supervisor:", advisor_title, meta.advisor.split()[0] if meta.advisor else ""),
+            ("Supervisor:", advisor_title, advisor_name),
             ("Associate Supervisor:", co_title, co_name),
         ]
         for row_idx, (label, title, name) in enumerate(cells):
@@ -811,10 +830,9 @@ class DocumentBuilder:
             if justify:
                 para.paragraph_format.alignment = WD_PARAGRAPH_ALIGNMENT.JUSTIFY
 
-        self.doc.add_paragraph()
-
         keyword_para = self.doc.add_paragraph()
         self._apply_line_spacing(keyword_para)
+        keyword_para.paragraph_format.space_before = Pt(self.styles.layout.line_spacing_pt)
         title_run = keyword_para.add_run(kw_label)
         self._apply_run_font(title_run, self.styles.font(kw_label_font))
         if keywords:
@@ -933,11 +951,8 @@ class DocumentBuilder:
         return para
 
     def _add_body_paragraph(self, text: str):
-        para = self.doc.add_paragraph()
+        para = self.doc.add_paragraph(style="Body Text")
         self._add_body_with_citations(para, text)
-        para.paragraph_format.line_spacing = Pt(self.styles.layout.line_spacing_pt)
-        para.paragraph_format.first_line_indent = Pt(self.styles.layout.first_line_indent_pt)
-        para.paragraph_format.alignment = WD_PARAGRAPH_ALIGNMENT.JUSTIFY
 
     def _build_section(self, section: Section):
         if section.auto_number:
@@ -962,13 +977,6 @@ class DocumentBuilder:
 
         for subsection in section.subsections:
             self._build_section(subsection)
-
-        if section.has_summary and section.summary_content:
-            self._add_heading("本章小结", 2)
-            for line in section.summary_content.split('\n'):
-                if not line.strip():
-                    continue
-                self._add_body_paragraph(line.strip())
 
 
     def _build_references(self):
@@ -1016,6 +1024,7 @@ class DocumentBuilder:
             para = self.doc.add_paragraph()
             self._set_paragraph_text(para, line, "body", True)
             para.paragraph_format.first_line_indent = Pt(self.styles.layout.first_line_indent_pt)
+            para.paragraph_format.alignment = WD_PARAGRAPH_ALIGNMENT.JUSTIFY
 
 
     def _content_width_inches(self) -> float:

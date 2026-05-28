@@ -121,13 +121,18 @@ class ThesisChecker:
 
     def _section_char_count(self, section: Section) -> int:
         total = sum(len(line) for line in section.content if line.strip())
-        if section.summary_content:
-            total += len(section.summary_content)
         for sub in section.iter_subsections():
             total += sum(len(line) for line in sub.content if line.strip())
-            if sub.summary_content:
-                total += len(sub.summary_content)
         return total
+
+    @staticmethod
+    def _get_summary_text(section: Section) -> str:
+        for sub in section.subsections:
+            if '本章小结' in sub.title:
+                return ''.join(
+                    item for item in sub.items if isinstance(item, str)
+                )
+        return ''
 
     def _find_section_for_rule(self, sections: List[Section], rule: Dict) -> Section:
         candidates = [rule["name"], *rule.get("alternatives", [])]
@@ -310,7 +315,8 @@ class ThesisChecker:
                 results.append(CheckResult(False, f"{normalized_title}小结", "缺少本章小结", "warning"))
                 continue
 
-            if len(section.summary_content.strip()) < min_length:
+            summary_text = self._get_summary_text(section)
+            if len(summary_text) < min_length:
                 results.append(CheckResult(
                     False, f"{normalized_title}小结",
                     f"本章小结过短，建议不少于{min_length}字",

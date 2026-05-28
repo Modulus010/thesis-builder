@@ -17,7 +17,9 @@ _HEADING_RE = re.compile(r'^#{1,6}\s+(.*)')
 
 
 _META_FIELDS = {"title", "english_title", "student_id", "student_name",
-                "advisor", "co_advisor", "college", "major", "year", "month"}
+                "english_name", "advisor", "english_advisor",
+                "co_advisor", "english_co_advisor",
+                "college", "major", "date"}
 
 
 def _consume_block(lines, pos):
@@ -197,23 +199,6 @@ def _parse_sections(lines, pos, thesis):
             if '本章小结' in title:
                 if current_chapter:
                     current_chapter.has_summary = True
-                    pos += 1
-                    summary_parts = []
-                    while pos < len(lines):
-                        s = lines[pos].strip()
-                        h2 = _match_heading(s)
-                        if h2:
-                            break
-                        if s:
-                            if s.startswith('@'):
-                                pos = _handle_directive(lines, pos, line_no, current_chapter, thesis)
-                            else:
-                                summary_parts.append(s)
-                                pos += 1
-                        else:
-                            pos += 1
-                    current_chapter.summary_content = '\n'.join(summary_parts) if summary_parts else title
-                continue
 
             section = Section(level=level, title=title, title_line_no=line_no)
             if level == 1:

@@ -110,7 +110,7 @@ fonts:
   abstract_title:
     name: 黑体
     size: 18       # 小二号
-    bold: true
+    bold: false
 
   # 中文摘要内容
   abstract_body:
@@ -154,7 +154,7 @@ fonts:
   toc_title:
     name: 黑体
     size: 18       # 小二号
-    bold: true
+    bold: false
 
   # 目录章标题
   toc_chapter:

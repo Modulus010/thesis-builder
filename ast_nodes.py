@@ -11,12 +11,23 @@ class Metadata:
     english_title: str = ""
     student_id: str = ""
     student_name: str = ""
+    english_name: str = ""
     advisor: str = ""
+    english_advisor: str = ""
     co_advisor: str = ""
+    english_co_advisor: str = ""
     college: str = ""
     major: str = ""
-    year: str = ""
-    month: str = ""
+    date: str = ""
+
+    @property
+    def year(self) -> str:
+        return self.date.split("-")[0] if self.date else ""
+
+    @property
+    def month(self) -> str:
+        parts = self.date.split("-")
+        return parts[1].lstrip("0") if len(parts) > 1 else ""
 
 
 @dataclass
