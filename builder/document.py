@@ -151,10 +151,6 @@ class DocumentBuilder:
         r = OxmlElement('w:r')
         rPr = OxmlElement('w:rPr')
 
-        rStyle = OxmlElement('w:rStyle')
-        rStyle.set(qn('w:val'), 'Hyperlink')
-        rPr.append(rStyle)
-
         if not self._is_body_default(font_cfg):
             fn = font_cfg.get('name', '宋体')
             size_val = str(int(font_cfg.get('size', 12) * 2))
@@ -375,7 +371,8 @@ class DocumentBuilder:
             try:
                 style = self.doc.styles[style_name]
             except KeyError:
-                style = self.doc.styles.add_style(style_name, WD_STYLE_TYPE.PARAGRAPH)
+                style = self.doc.styles.add_style(style_name, WD_STYLE_TYPE.PARAGRAPH,
+                                                    builtin=True)
             self._apply_style_font(style, font_key)
             style.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
             style.paragraph_format.space_before = Pt(0)
@@ -898,9 +895,13 @@ class DocumentBuilder:
             self._apply_run_font(r1, self.styles.font(font_key))
 
         r2 = para.add_run(str(reset_val))
-        r2._r.append(fld_end)
         if font_key:
             self._apply_run_font(r2, self.styles.font(font_key))
+
+        r3 = para.add_run()
+        r3._r.append(fld_end)
+        if font_key:
+            self._apply_run_font(r3, self.styles.font(font_key))
 
     _ASSIGNED_NUM_RE = re.compile(r'^([图表])(\d+)\.(\d+)$')
 

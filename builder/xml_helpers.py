@@ -84,6 +84,7 @@ def build_anchor_from_inline(inline, *, behind_doc=True, allow_overlap=True,
     anchor.set('locked', '0')
     anchor.set('layoutInCell', '1')
     anchor.set('allowOverlap', '1' if allow_overlap else '0')
+    anchor.set('relativeHeight', '0')
 
     simplePos = OxmlElement('wp:simplePos')
     simplePos.set('x', '0')

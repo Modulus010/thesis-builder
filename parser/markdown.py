@@ -216,6 +216,8 @@ def _parse_sections(lines, pos, thesis):
 
         if section_stack:
             pos = _handle_directive(lines, pos, line_no, section_stack[-1], thesis)
+        else:
+            pos += 1
 
     return pos
 
